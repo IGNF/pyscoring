@@ -1,0 +1,128 @@
+Changelog
+==================
+
+All notable changes to this project will be documented in here.
+
+The format is based on https://keepachangelog.com/en/1.0.0/).
+
+[2.3] 2025-02-26
+--------------------------
+Added
+- Documentation (sphinx and readthedoc)
+- New repository
+
+Deleted
+- Cleaning some files and functions not useful anymore
+
+[2.2.2] - 2025-02-13
+--------------------------
+
+Fixed
+- Bug of some Invalid polygons in matching step
+- Some MultiPolygons were not separated in separated Polygons during the loading of data
+- Vulnerability of Fiona
+- The tests-pipeline is now correctly plugged to the main branch
+
+Added
+- Few documentation (comments in the code)
+- GNU GPL License
+
+[2.2.1] - 2024-09-11
+--------------------------
+Changed
+- Clean example directory with examples (script, data and configuration) for both 2D and 3D cases
+
+Added
+- Initialisation of a github pipeline and automatic tests of Pyscoring
+
+
+[2.2.0] - 2024-07-09
+--------------------------
+Added
+- A first integration of 3D metrics in pyscoring (for CityJSON files)
+- Possibility to use a config file to configurate a launch of pyscoring
+
+Fixed
+- Clean the example launching script 
+
+
+[2.1.1] - 2024-04-09
+--------------------------
+Changed
+- Print time inside the pyscoring interfaces, not anymore in the example
+- Time in h : m : s 
+
+Fixed
+- Parallelisation inside by pyscoring interfaces
+- Back to previous match method
+- Choice of the working-bbox
+- Output files creation
+
+[2.1.0] - 2024-03-13
+--------------------------
+Added
+- Starting using interface inside pyscoring to configure, load data and launch metrics computers
+- First tries of using .log in the output
+- Possibility to use a shapefile to define a working bbox
+- More configurations : criteria, threshold, families of metrics, log, wbbox, output choice
+
+Changed
+- Make example file shorter and using the first instance of pyscoring's interface
+
+Fixed
+- Matches 
+
+[2.0.6] - 2024-03-08
+--------------------------
+Added
+- An output file in .shp
+- A proposition of QGIS style for the output .shp to analyse output
+- Integration of the function to merge metrics in pyscoring (from example script)
+- Metrics by category of matches in the output
+- Add extended match (union of building over the match) for special cases in the matching system
+
+Changed
+- Column names of local outputs to fit the restriction of 10 characters
+- Ids listed in local output with "," between them and not "/n"
+
+
+[2.0.5] - 2024-01-19
+--------------------------
+Added
+- Matching possible with IOU threshold now
+
+Changed
+- Update matching classes and files
+
+[2.0.4] - 2024-01-17
+--------------------------
+Added
+- Max value of Edges metrics for Contour (distance) and Orientation (angle differences) 
+- Informations of P (Prediction) or GT (GroundTruth) for the Edges metrics
+
+Fixed
+- Debug Orientation in some cases
+
+Changed
+- Only 2 decimal numbers in local metrics
+
+[2.0.3] - 2023-11-21
+--------------------------
+Added
+- Possibility to merge buildings (N-M) 
+
+Fixed
+- Earthpy not usable offline, replaced by Pyproj
+
+[2.0.2] - 2023-10-02
+--------------------------
+Added
+- Example script with a parallelisation
+- CSV output local metrics : with id and local metrics
+- CSV output global metrics 
+
+[2.0.1] - 2023-09-29
+--------------------------
+Changed
+- Initialisation of Pyscoring 2.0
+

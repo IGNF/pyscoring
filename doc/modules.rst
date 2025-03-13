@@ -1,0 +1,6 @@
+PyScoring package
+======================
+
+.. toctree::
+
+    pyscoring

@@ -1,0 +1,11 @@
+example/*
+*.ini
+*.json
+*/example.py
+*/__pycache__
+build
+.coverage
+pyscoring.egg-info
+*.pyc
+.idea
+doc/_build
