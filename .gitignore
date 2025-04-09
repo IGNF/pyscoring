@@ -1,6 +1,5 @@
-*.ini
-*.json
-*/example.py
+#*.ini
+#*.json
 */__pycache__
 build
 .coverage
