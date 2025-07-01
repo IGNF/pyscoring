@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+[project]
+name = "Pyscoring"
+version = "2.3.0"
+authors = [
+  {name="Etienne Le Bihan"},
+]
+description = "Pyscoring, a library computing metrcis to evaluate vector data"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "GNU"
+license-files = ["GPL3.0"]
+
+[project.urls]
+Homepage = "https://github.com/pypa/pyscoring"
+Issues = "https://github.com/pypa/pyscoring/issues"
