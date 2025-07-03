@@ -1,5 +1,6 @@
 # Third-party libraries
 from sklearn.metrics import confusion_matrix
+import numpy as np
 
 # Local libraries
 from pyscoring.metrics.metric import Metric
