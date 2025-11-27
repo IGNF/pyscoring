@@ -38,6 +38,7 @@ class EdgesMetric:
         mode=0,
         savePoints=False,
         union=False,
+        holes_sep=False
     ):
         r"""
 
@@ -69,6 +70,7 @@ class EdgesMetric:
         self.mode = mode
         self.svPts = savePoints
         self.union = union
+        self.holes_sep = holes_sep
         self._init_values()
 
     def _init_values(self):
@@ -248,7 +250,9 @@ class EdgesMetric:
 
         for h_id, hole in enumerate(polygon.interiors):
             hole_c= hole.coords
-            sample.append([])
+            
+            if self.holes_sep:
+                sample.append([])
            
             for i, coord in enumerate(hole_c):
                 previous_coord = exterior_c[i-1]
@@ -259,8 +263,14 @@ class EdgesMetric:
                     previous_coord = exterior_c[i-1]
                     edge = geom.LineString([geom.Point(previous_coord), geom.Point(coord)])
                     pts_edge = self.interpolate(edge, rate)[:-1]
-                    sample[0] += pts_edge 
-                    #sample[h_id+1] += pts_edge 
+
+                    if self.holes_sep :
+                        #for now holes are ignored there, TODO compare them with holes
+                        sample[h_id+1] += pts_edge 
+                    else:
+                        #holes are understood as other edges
+                        sample[0] += pts_edge  
+                        
             
         return sample
 
