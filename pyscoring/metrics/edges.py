@@ -24,7 +24,7 @@ class EdgesMetric:
     It gives three methods:
 
         * :meth:`update(detections, ground_truths) <update>` which accumulates distances and angles over examples
-        * :meth:`compute` which computes PCont, RCont, POri, ROri per label from accumulated values
+        * :meth:`compute` which computes PCont, RCont per label from accumulated values
         * :meth:`reset` which resets accumulated values to their initial values to start computations from scratch
 
     """
@@ -73,30 +73,21 @@ class EdgesMetric:
 
     def _init_values(self):
         self._number_of_dataset = 0
+        self._number_of_samples_GT = 0 
+        self._number_of_samples_P = 0
 
         self._ground_truth_labels = set()
 
-        # self.distPrecision = defaultdict(float)
-        # self.distRappel = defaultdict(float)
-        # self.slopePrecision = defaultdict(float)
-        # self.slopeRappel = defaultdict(float)
-        self.distPrecision = 0.0
-        self.distRappel = 0.0
+        self.summ_distPrecision = 0.0
+        self.summ_distRecall = 0.0
         self.maxDistP = 0.0
         self.maxDistR = 0.0
-
-        self.slopePrecision = 0.0
-        self.slopeRappel = 0.0
-        self.maxAngleP = 0.0
-        self.maxAngleR = 0.0
 
         self._numberDmatched = 0
         self._numberGTmatched = 0
 
-        self._pc = 0.0  # PCont
-        self._rc = 0.0  # RCont
-        self._po = 0.0  # POri
-        self._ro = 0.0  # ROri
+        self._P = 0.0  # Precision metric
+        self._R = 0.0  # Recall metric
 
     def update(self, detections, ground_truths, mode=None):
         """
@@ -124,10 +115,13 @@ class EdgesMetric:
 
         if self.matched:  # TODO not matched !
             match_matrix = np.ones((len(detections), len(ground_truths)))
-
+        else : 
+            print('Not matched data. Pass')
+            return 
+            
         # Sampling the detections
         sampled_detection = []
-        slope_detection = []
+      
         total_notccw = 0
 
         for polygon in polygon_detect:
@@ -136,160 +130,92 @@ class EdgesMetric:
             if not linRing.is_ccw:  # test the outside line
                 total_notccw += 1
 
-            sampled_polygon, slopes = self._sampling(polygon, self.pixel_size)
+            sampled_polygon = self._sampling(polygon, self.pixel_size)
 
             sampled_detection.append(sampled_polygon)
-            slope_detection.append(slopes)
 
         # Sampling the gt
         sampled_gt = []
-        slope_gt = []
         total_notccwgt = 0
         for polygon in polygon_gt:
             linRing = geom.LinearRing(polygon.exterior)
             if not linRing.is_ccw:
                 total_notccwgt += 1
 
-            sampled_polygon, slopes = self._sampling(polygon, self.pixel_size)
+            sampled_polygon = self._sampling(polygon, self.pixel_size)
 
             sampled_gt.append(sampled_polygon)
-            slope_gt.append(slopes)
 
         # for each polygon in the dataset of detections : compute the means with the GT
         if mode == 0 or mode == 1:
             (
-                mean_dist_precision,
-                mean_slope_precision,
-                max_dist_p,
-                max_angle_p,
-                index_detect,
+                mean_dist_by_polygon,
+                max_dist_by_polygon,
+                nb_pts_by_polygon,
                 nbDmatched,
             ) = distance(
-                [sampled_detection, slope_detection],
-                [sampled_gt, slope_gt],
+                sampled_detection,
+                sampled_gt,
                 match_matrix,
                 self.svPts,
             )
-            mean = [0, 0]
-            for i in range(index_detect):
-                if mean_dist_precision[i] != -1:
-                    mean[0] += mean_dist_precision[i]
-                    mean[1] += mean_slope_precision[i]
 
-                # if not self.distPrecision[gt_label]:
-                #     self.distPrecision[gt_label] = 0
-                #     self.slopePrecision[gt_label] = 0
-                #
-                # self.distPrecision[gt_label] = ((self.distPrecision[gt_label]*self._number_of_dataset) \
-                #                                             + (mean[0] / index_detect)) / (self._number_of_dataset+1)
-                #
-                # self.slopePrecision[gt_label] = ((self.slopePrecision[gt_label] * self._number_of_dataset) \
-                #                                 + (mean[1] / index_detect)) / (self._number_of_dataset + 1)
+            mean_dist = 0
+            max_dist = 0
+            nb_pts = 0
 
-                self.distPrecision = (
-                    self.distPrecision * self._number_of_dataset
-                    + (mean[0] / index_detect)
-                ) / (self._number_of_dataset + 1)
-                self.slopePrecision = (
-                    (self.slopePrecision * self._number_of_dataset)
-                    + (mean[1] / index_detect)
-                ) / (self._number_of_dataset + 1)
-
-                self.maxDistP = (
-                    max_dist_p[i] if max_dist_p[i] > self.maxDistP else self.maxDistP
-                )
-                self.maxAngleP = (
-                    max_angle_p[i]
-                    if max_angle_p[i] > self.maxAngleP
-                    else self.maxAngleP
-                )
-
+            for i, mean_i in enumerate(mean_dist_by_polygon):
+                if mean_i != -1 :
+                    mean_dist += mean_i
+                    max_dist = max_dist_by_polygon[i] if max_dist_by_polygon[i] > max_dist else max_dist
+                    nb_pts += nb_pts_by_polygon[i]
+            
+            self.summ_distPrecision += mean_dist * nb_pts
+            self.maxDistP = max_dist if max_dist > self.maxDistP else self.maxDistP
+            self._number_of_samples_P += nb_pts
             self._numberDmatched += nbDmatched
 
-        # for each polygon in the dataset of GT : compute the means with the detections
+        # for each polygon in the dataset of GT : compute the means with the predictions
         if mode == 0 or mode == 2:
             (
-                mean_dist_rappel,
-                mean_slope_rappel,
-                max_dist_r,
-                max_angle_r,
-                index_gt,
+                mean_dist_by_polygon,
+                max_dist_by_polygon,
+                nb_pts_by_polygon,
                 nbGTmatched,
             ) = distance(
-                [sampled_gt, slope_gt],
-                [sampled_detection, slope_detection],
+                sampled_gt,
+                sampled_detection,
                 match_matrix.T,
-                False,
+                self.svPts,
             )
 
-            mean = [0, 0]
-            for i in range(index_gt):
-                if mean_dist_rappel[i] != -1:
-                    mean[0] += mean_dist_rappel[i]
-                    mean[1] += mean_slope_rappel[i]
+            mean_dist = 0
+            max_dist = 0
+            nb_pts = 0
 
-                # if not self.distRappel[gt_label]:
-                #     self.distRappel[gt_label] = 0
-                #     self.slopeRappel[gt_label] = 0
-                #
-                # self.distRappel[gt_label] = ((self.distRappel[gt_label] * self._number_of_dataset) \
-                #                                 + (mean[0] / index_gt)) / (self._number_of_dataset + 1)
-                # self.slopeRappel[gt_label] = ((self.slopeRappel[gt_label] * self._number_of_dataset) \
-                #                             + (mean[1] / index_gt)) / (self._number_of_dataset + 1)
-
-                self.distRappel = (
-                    self.distRappel * self._number_of_dataset + (mean[0] / index_gt)
-                ) / (self._number_of_dataset + 1)
-                self.slopeRappel = (
-                    (self.slopeRappel * self._number_of_dataset) + (mean[1] / index_gt)
-                ) / (self._number_of_dataset + 1)
-                self.maxDistR = (
-                    max_dist_r[i] if max_dist_r[i] > self.maxDistR else self.maxDistR
-                )
-                self.maxAngleR = (
-                    max_angle_r[i]
-                    if max_angle_r[i] > self.maxAngleR
-                    else self.maxAngleR
-                )
-
+            for i, mean_i in enumerate(mean_dist_by_polygon):
+                if mean_i != -1 :
+                    mean_dist += mean_i
+                    max_dist = max_dist_by_polygon[i] if max_dist_by_polygon[i] > max_dist else max_dist
+                    nb_pts += nb_pts_by_polygon[i]
+            
+            self.summ_distRecall = mean_dist * nb_pts
+            self.maxDistR = max_dist if max_dist > self.maxDistR else self.maxDistR
+            self._number_of_samples_GT += nb_pts
             self._numberGTmatched += nbGTmatched
 
         self._number_of_dataset += 1
 
     def compute(self):
-        # sumpc = 0
-        # for label in self.distPrecision:
-        #     sumpc += self.distPrecision[label]
-        # if len(self.distPrecision) != 0 :
-        #     self._pc = sumpc / len(self.distPrecision)
-        #
-        # sumrc = 0
-        # for label in self.distRappel:
-        #     sumrc += self.distRappel[label]
-        # if len(self.distRappel) != 0 :
-        #     self._rc = sumrc / len(self.distRappel)
-        #
-        # sumpo = 0
-        # for label in self.slopePrecision:
-        #     sumpo += self.slopePrecision[label]
-        # if len(self.slopePrecision) != 0 :
-        #     self._po = sumpo / len(self.slopePrecision)
-        #
-        # sumro = 0
-        # for label in self.slopeRappel:
-        #     sumro += self.slopeRappel[label]
-        # if len(self.slopeRappel) != 0 :
-        #     self._ro = sumro / len(self.slopeRappel)
+        if self._number_of_samples_P and self._number_of_samples_GT:
+            self._P = self.summ_distPrecision / self._number_of_samples_P
+            self._R = self.summ_distRecall / self._number_of_samples_GT
 
         return (
-            self.distPrecision,
-            self.distRappel,
+            self._P,
+            self._R,
             self.maxDistP,
             self.maxDistR,
-            self.slopePrecision,
-            self.slopeRappel,
-            self.maxAngleP,
-            self.maxAngleR,
             self._numberDmatched,
             self._numberGTmatched,
         )
@@ -303,61 +229,65 @@ class EdgesMetric:
 
     def _sampling(self, polygon, rate):
         sample = [[]]
-        slope = [[]]
-        exterior_c = polygon.exterior.coords
-        for index in range(len(exterior_c)):
-            if index != len(exterior_c) - 1:
-                edge = geom.LineString([exterior_c[index], exterior_c[index + 1]])
-                origins = edge.coords
-                while edge:
-                    points, edge = self.cut(edge, rate)
-                    sample[0].append(points[0])
-                    slope[0].append(origins)
-            elif (
-                exterior_c[index][0] != exterior_c[0][0]
-                and exterior_c[index][1] != exterior_c[0][1]
-            ):
-                edge = geom.LineString([exterior_c[index], exterior_c[0]])
-                origins = edge.coords
-                while edge:
-                    points, edge = self.cut(edge, rate)
-                    sample[0].append(points[0])
-                    sample[0].append(points[1])
-                    slope[0].append(origins)
-                    slope[0].append(origins)
 
-        for hole in polygon.interiors:
-            hole_c = hole.coords
+        exterior_c = polygon.exterior.coords
+        
+
+        
+        for i, coord in enumerate(exterior_c):            
+            previous_coord = exterior_c[i-1]
+
+            if i==0 and coord == previous_coord :
+                pass            
+            else : 
+                previous_coord = exterior_c[i-1]
+                
+                edge = geom.LineString([geom.Point(previous_coord), geom.Point(coord)])
+                pts_edge = self.interpolate(edge, rate)[:-1]
+                sample[0] += pts_edge        
+
+        for h_id, hole in enumerate(polygon.interiors):
+            hole_c= hole.coords
             sample.append([])
-            for index in range(len(hole_c)):
-                if index != len(hole_c) - 1:
-                    edge = geom.LineString([hole_c[index], hole_c[index + 1]])
-                    origins = edge.coords
-                    while edge:
-                        points, edge = self.cut(edge, rate)
-                        sample[-1].append(points[0])
-                        slope[-1].append(origins)
-                else:
-                    edge = geom.LineString([hole_c[index], hole_c[0]])
-                    origins = edge.coords
-                    while edge:
-                        points, edge = self.cut(edge, rate)
-                        sample[-1].append(points[0])
-                        sample[-1].append(points[1])
-                        slope[-1].append(origins)
-                        slope[-1].append(origins)
-        return sample, slope
+           
+            for i, coord in enumerate(hole_c):
+                previous_coord = exterior_c[i-1]
+
+                if i==0 and coord == previous_coord :
+                    pass            
+                else : 
+                    previous_coord = exterior_c[i-1]
+                    edge = geom.LineString([geom.Point(previous_coord), geom.Point(coord)])
+                    pts_edge = self.interpolate(edge, rate)[:-1]
+                    sample[0] += pts_edge 
+                    #sample[h_id+1] += pts_edge 
+            
+        return sample
 
     @staticmethod
-    def cut(line, distance):
-        # Cuts a line in two at a distance from its starting point
-        if distance <= 0.0 or distance >= line.length:
-            return list(line.coords), None
+    def floatrange(start, stop, step):
+        list = []
+        while start <= stop :
+            list.append(start)
+            start += step 
+        
+        return list
 
-        return list(
-            geom.LineString([line.coords[0], line.interpolate(distance)]).coords
-        ), geom.LineString([line.interpolate(distance), line.coords[1]])
-
+    def interpolate(self, line, rate):
+        pts = []
+        #TODO : 
+        #class_id = row_gdf.get(CLASS_ROW, 99) if isgt else row_gdf.get(CLASS_ROW, 0)
+        #class_id = CLASS_NAMES[int(class_id)]
+        #
+        try:
+            for step in self.floatrange(0, line.length, rate):
+                pts.append(line.line_interpolate_point(step))
+        except Exception as e:
+            print("Error w :", line)
+            print(e)
+    
+        return pts #, class_id
+    
     def merge(self, polygons):
         """
         Merge a dataset of polygons, and separate them back if they are not touching each others and then forming a MultiPolygon
@@ -383,183 +313,89 @@ class EdgesMetric:
         return new_polygons
 
 
-def distance(datasetA, datasetB, match_matrix, svPts):
+def distance(sampledA, sampledB, match_matrix, svPts=False):
     r"""
     The distance function computes distances (in meters and in terms of angles too) between the two datasets A and B of polygons. Those polygons are sampled by multiple points on
-    their edges. One dataset contains all the points sampling its polygons and the edges corresponding.
-
-    For every polygon of dataset A which is matched with at least a polygon of B : every point of the A-polygon will be matched with the closest point on the sample of the matched B-polygon.
-    From this match between samples-points will be computed an angle (edge to edge) and a distance, which are going to be returned in means.
+    their edges. One dataset contains all the points sampling its polygons and the edges corresponding. For every polygon of dataset A which is matched with at least a polygon of B : every point of the A-polygon will be matched with the closest point on the sample of the matched B-polygon.
+    Deprecated : From this match between samples-points will be computed an angle (edge to edge) and a distance, which are going to be returned in means.
 
 
     Args:
         datasetA (List): List composed of 2 elements : a list of its sampled polygons, a list of the edges of the polygons
         datasetB (List): List composed of 2 elements : a list of its sampled polygons, a list of the edges of the polygons
         match_matrix (Matrix): matrix of size len(A)xlen(B) representing the matches found between A and B
-        svPts (boolean) : If True it will save the points whith the couple (distance, angle) of its match into a shapefile.
+        svPts (boolean) : If True it will save the points whith the distance of its match into a shapefile
     Returns:
-        mean_dist (List of float): List wich associates for A-polygon the mean minimum distance between each of its samples and a sample of a B-polygon matched with A. If no match for the A-polygon the value is set to -1.
-        mean_angle (List): List wich associates for each A-polygon the mean angle between the edge of each of its samples and the edge of the closest B-polygon matched sample. If no match for the A-polygon the value is set to -1.
+        mean_dist (List of float): List wich associates for A-polygon the mean minimum distance between each of its samples and a sample of a B-polygon matched with A. If no match for the A-polygon the value is set to -1
         index_A (int): A count of the number of polygons in the dataset A
         number_of_A_matched (int): A count of the number of matched polygons in the dataset A
 
     """
-    sampledA, edgeA = datasetA[0], datasetA[1]
-    sampledB, edgeB = datasetB[0], datasetB[1]
 
-    index_A = 0
-    mean_dist_by_A = defaultdict(float)
-    mean_angle_by_A = defaultdict(float)
-    max_dist_by_A = defaultdict(float)
-    max_angle_by_A = defaultdict(float)
+    
+    mean_dist_by_A = [-1] * len(sampledA)
+    max_dist_by_A = [-1] * len(sampledA)
+    nb_samples_by_A = [-1] * len(sampledA)
+
     nbr_of_A_matched = 0
 
-    for match_instance in match_matrix:
+    for ia, match_instance in enumerate(match_matrix):
         # match_matrix size AxB, match_instance is a binary list telling if A is matched with B[i]
-        A_polygon, A_polygon_edge = (
-            sampledA[index_A][0],
-            edgeA[index_A][0],
-        )  # Get the A-polygon sampled and its edges
+        sp_A = sampledA[ia][0] # sampled polygon A 
 
-        mean_dist_by_A[index_A] = -1  # For now, A is not matched
         nbr_matches = 0  # Number of matchs for A
-        matrix_min = []
-        matrix_edge = []
+        list_min = [-1] * len(sp_A) # initialise a list of distance for each point sampled on A 
 
-        for index_B in range(len(match_instance)):
+        for ib, match_bool in enumerate(match_instance):
             # for each polygon B test if there is a match
-            if match_instance[index_B] == 1:  # there's a match between Bi and A !
+            if match_bool == 1:  # there's a match between Bi and A !
                 nbr_matches += 1
-                B_polygon, B_polygon_edge = (
-                    sampledB[index_B][0],
-                    edgeB[index_B][0],
-                )  # Get B-polygon sample & its edges
+                nbr_of_A_matched += 1
 
-                if mean_dist_by_A[index_A] < 0:
-                    # if it's the 1st match of A, initiate the dist to 0 and add the A-polygon as matched in the count.
-                    mean_dist_by_A[index_A] = 0
-                    nbr_of_A_matched += 1
+                sp_B = sampledB[ib][0] # sampled polygon B
 
-                dist_to_this_match = (
-                    []
-                )  # list of the shortest distances from the sampled A to sampled B
-                edge_match = []
-
-                for icoord_A in range(len(A_polygon)):
+                for ic, point_A in enumerate(sp_A):
                     # for each point sampled on the polygon A get its coordinates
-                    coord_A = A_polygon[icoord_A]
-                    point_A = geom.Point(coord_A)
-                    sum_dist_point = []
-                    for coord_B in B_polygon:
-                        # for each point sampled on the polygon B get its coordinates
-                        point_B = geom.Point(coord_B)
-                        sum_dist_point.append(
-                            point_A.distance(point_B)
-                        )  # Shapely distance between points
-                    dist_to_this_match.append(
-                        min(sum_dist_point)
-                    )  # Match the A-point to the closest B-point
-                    edge_match.append(
-                        B_polygon_edge[sum_dist_point.index(min(sum_dist_point))]
-                    )
+                    minimum_dist = None
+                    list_dist_point = point_A.distance(sp_B)
+                                           
+                    minimum_dist = np.min(list_dist_point) # Match the A-point to the closest B-point
+                    
+                    if nbr_matches == 1 : # first match of A with B so initialisation of min distance
+                        list_min[ic] = minimum_dist
+                    else : # not the first match so lets check if we encountered a closer point
+                        list_min[ic] = minimum_dist if minimum_dist < list_min[ic] else list_min[ic]
+                    
+                    if svPts:
+                        shpOut = "/home/ELe-Bihan/gitclones/github.com/pyscoring/example/2D/output/pts.shp"
+                        schema = {
+                            'geometry': 'Point',
+                            'properties': {'id': int, 'distance': 'double', 'angle': 'float'},
+                        }
+                        with open(shpOut, "a", 'ESRI Shapefile', schema) as output:
+                            point = point_A
+                        
+                        output.write({'properties': {'id': len(output) + 1, 'distance': min(list_dist_point)},
+                                        'geometry': geom.mapping(point)
+                                        })
 
-                matrix_min.append(
-                    dist_to_this_match
-                )  # matrix_min : nb of matches x nb of points sampled on A
-                matrix_edge.append(edge_match)
-            else:
-                # If not matched: do nothing
-                None
+            else : # If not matched: do nothing
+                pass        
 
-        if matrix_min:
-            # if there is at least a match
-            array_min = np.array(matrix_min).T
-            array_edge = np.array(matrix_edge).transpose([1, 0, 2, 3])
+        if nbr_matches > 0:
+            mean_dist_by_A[ia] = np.mean(list_min)           
+            max_dist_by_A[ia] = np.max(list_min)
+            nb_samples_by_A[ia] = len(list_min)
 
-            min_sum = 0
-            max_dist = 0
-            max_angle = 0
-            angle_matching = []
+            if np.mean(list_min) > 5 and np.mean(list_min) < 6 :
+                print(list_min)
+                print(sp_A)
 
-            for index in range(len(array_min)):
-                # for every point sampled on A-polygon :
-                # get the A-edge on which the point is and the B-one the other point is
-                # from that get the distance and the angle between the two of edges
-
-                coord_A = A_polygon[index]
-                dist = array_min[index].tolist()
-                edges = array_edge[index].tolist()
-                min_sum += min(dist)
-
-                max_dist = min(dist) if min(dist) > max_dist else max_dist
-
-                # Angle calculation
-                edge_index = A_polygon_edge[index]
-                edge_matched = edges[dist.index(min(dist))]
-
-                x_vector_A = edge_index[1][0] - edge_index[0][0]
-                y_vector_A = edge_index[1][1] - edge_index[0][1]
-
-                x_vector_B = edge_matched[1][0] - edge_matched[0][0]
-                y_vector_B = edge_matched[1][1] - edge_matched[0][1]
-
-                angleA = math.atan2(y_vector_A, x_vector_A)
-                angleB = math.atan2(y_vector_B, x_vector_B)
-
-                if angleA > math.pi / 2:
-                    angleA -= math.pi
-                if angleA < -math.pi / 2:
-                    angleA += math.pi
-
-                if angleB > math.pi / 2:
-                    angleB -= math.pi
-                if angleB < -math.pi / 2:
-                    angleB += math.pi
-
-                angle = angleB - angleA
-
-                deg_angle = abs(angle) * 180 / math.pi
-                if deg_angle > 90:
-                    deg_angle = 180 - deg_angle
-
-                max_angle = deg_angle if deg_angle > max_angle else max_angle
-                angle_matching.append(deg_angle)
-
-                # if svPts:
-                # TBD
-                # shpOut = ""
-
-                # schema = {
-                #    'geometry': 'Point',
-                #    'properties': {'id': int, 'distance': 'double', 'angle': 'float'},
-                # }
-
-                # with open(shpOut, "a", 'ESRI Shapefile', schema) as output:
-                #    point = geom.Point(coord_A)
-
-                # Write output
-                #   output.write({'properties': {'id': len(output) + 1, 'distance': min(dist), 'angle': deg_angle},
-                #                 'geometry': geom.mapping(point)
-                #                 })
-
-            if nbr_matches > 0:
-                mean_dist_by_A[index_A] = min_sum / len(array_min)
-                mean_angle_by_A[index_A] = sum(angle_matching) / len(angle_matching)
-                max_dist_by_A[index_A] = max_dist
-                max_angle_by_A[index_A] = max_angle
-            else:  # if not matched
-                mean_dist_by_A[index_A] = -1
-                mean_angle_by_A[index_A] = -1
-                max_dist_by_A[index_A] = -1
-                max_angle_by_A[index_A] = -1
-
-        index_A += 1  # next polygone A
-
+        else:  # if not matched
+           pass
     return (
         mean_dist_by_A,
-        mean_angle_by_A,
         max_dist_by_A,
-        max_angle_by_A,
-        index_A,
+        nb_samples_by_A,
         nbr_of_A_matched,
     )

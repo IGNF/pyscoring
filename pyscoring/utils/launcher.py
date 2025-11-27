@@ -49,11 +49,7 @@ class Launcher:
             "PCont": 0,
             "RCont": 0,
             "PCont_max": 0,
-            "RCont_max": 0,
-            "POri": 0,
-            "ROri": 0,
-            "POri_max": 0,
-            "ROri_max": 0,
+            "RCont_max": 0
         }
 
         self.global_topo = {"TFP": 0, "TFN": 0, "OS": 0, "US": 0}
@@ -284,10 +280,6 @@ class Launcher:
                         "Dist_GT": "float",
                         "Distmax_P": "float",
                         "Distmax_GT": "float",
-                        "Ori_P": "float",
-                        "Ori_GT": "float",
-                        "Orimax_P": "float",
-                        "Orimax_GT": "float",
                         "Surf_TP": "float",
                         "Surf_TN": "float",
                         "Surf_FP": "float",
@@ -397,12 +389,6 @@ class Launcher:
                                     "Distmax_GT": "{:.2f}".format(
                                         list(tile["edges"])[3]
                                     ),
-                                    "Ori_P": "{:.2f}".format(list(tile["edges"])[4]),
-                                    "Ori_GT": "{:.2f}".format(list(tile["edges"])[5]),
-                                    "Orimax_P": "{:.2f}".format(list(tile["edges"])[6]),
-                                    "Orimax_GT": "{:.2f}".format(
-                                        list(tile["edges"])[7]
-                                    ),
                                     "Surf_TP": "{:.2f}".format(
                                         list(tile["surfacic"])[0]
                                     ),
@@ -504,10 +490,6 @@ class Launcher:
                         "Rappel de Contour",
                         "Precision Contour max",
                         "Rappel Contour max",
-                        "Précision d'Orientation",
-                        "Rappel d'Orientation",
-                        "Precision Orientation max",
-                        "Rappel Orientation max",
                         "Taux vrais positifs surf.",
                         "Taux vrais negatifs surf.",
                         "Taux faux positifs surf.",
