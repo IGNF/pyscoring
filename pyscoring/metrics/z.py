@@ -39,14 +39,18 @@ class ZMetric:
         self.nb_pix_ground_p = 0
 
         self.diff_z = 0
+        self.diff_z_absolute = 0
         self.diff_z_sq = 0
         self.nb_pix_masked = 0  # errors
+
+        self.mask_diff = None
 
         # Metrics
         self.under_rc = 0
         self.over_rc = 0
-        self.sm_err = 0
-        self.sm_err_sq = 0
+        self.mean_error = 0
+        self.rmse = 0
+        self.standard_dev = 0
 
     def update(self, predictions, ground_truths, boundingbox=None, resolution=0.5):
         """
@@ -195,7 +199,7 @@ class ZMetric:
 
         # Calculation of the Z difference between the two masked rasters
         mask_diff = np.ma.subtract(mask_errors_gt, mask_errors_p, dtype=np.float32)
-        
+        self.mask_diff = mask_diff 
         self.nb_pix_masked += np.sum(fusion_all_masks)
 
         if self.save_raster_pth:
@@ -214,10 +218,11 @@ class ZMetric:
         self.under_rc = self.nb_pix_only_gt / (self.nb_pix - self.nb_pix_ground_gt)
         self.over_rc = self.nb_pix_only_p / (self.nb_pix - self.nb_pix_ground_p)
 
-        self.sum_err = self.diff_z / (self.nb_pix - self.nb_pix_masked)
-        self.sum_err_sq = self.diff_z_sq / (self.nb_pix - self.nb_pix_masked)
-
-        return self.under_rc, self.over_rc, self.sum_err, sqrt(self.sum_err_sq)
+        self.mean_error = self.diff_z / (self.nb_pix - self.nb_pix_masked)
+        self.rmse = sqrt(self.diff_z_sq / (self.nb_pix - self.nb_pix_masked))
+        
+        self.standard_dev = sqrt(np.ma.sum(np.ma.power(self.mask_diff - self.mean_error, 2)) / (self.nb_pix - self.nb_pix_masked))
+        return self.under_rc, self.over_rc, self.mean_error, self.rmse, self.standard_dev
 
     def zmask(self, z_mask, bbox, roof_and_ids, resolution, nodata, margin=1):
         """
@@ -349,15 +354,16 @@ class ZMetric:
                                 z = self.get_z(a, b, c, d, center_pix)
                                 # If z is still negative, raise an error and exit
                                 if z < 0:
-                                    print("Could not deal w this polygon. Exiting.")
+                                    #print("Could not deal w this polygon. Let's approximate Z")
                                     corner_pts = [
                                         Point(corner) for corner in roof_corners
                                     ]
-                                    print(corner_pts)
-                                    print(Point(center_pix))
-                                    print(z)
-                                    print(a, b, c, d)
-                                    sys.exit(1)
+                                    #print(corner_pts)
+                                    #print(Point(center_pix))
+                                    #print(z)
+                                    #print(a, b, c, d)
+                                    z = corner_pts[0].z
+                                    #sys.exit(1)
                                 else:
                                     pass
                         z_mask[i][j] = z

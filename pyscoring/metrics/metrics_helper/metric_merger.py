@@ -46,11 +46,7 @@ class Merger:
             "PCont": 0,
             "RCont": 0,
             "PCont_max": 0,
-            "RCont_max": 0,
-            "POri": 0,
-            "ROri": 0,
-            "POri_max": 0,
-            "ROri_max": 0,
+            "RCont_max": 0
         }
 
         self.topo = {"TFP": 0, "TFN": 0, "OS": 0, "US": 0}
@@ -93,32 +89,17 @@ class Merger:
             edges["RCont"] * intrinsics["MLA"] * intrinsics["NS"]
             + local_edg[1] * local_intr[0] * local_intr[3]
         ) / (intrinsics["MLA"] * intrinsics["NS"] + local_intr[0] * local_intr[3])
-        edges["ROri"] = (
-            edges["ROri"] * intrinsics["MLA"] * intrinsics["NS"]
-            + local_edg[5] * local_intr[0] * local_intr[3]
-        ) / (intrinsics["MLA"] * intrinsics["NS"] + local_intr[0] * local_intr[3])
         edges["PCont"] = (
             edges["PCont"] * intrinsics["MLA"] * intrinsics["NS"]
             + local_edg[0] * local_intr[0] * local_intr[3]
         ) / (intrinsics["MLA"] * intrinsics["NS"] + local_intr[0] * local_intr[3])
-        edges["POri"] = (
-            edges["POri"] * intrinsics["MLA"] * intrinsics["NS"]
-            + local_edg[4] * local_intr[0] * local_intr[3]
-        ) / (intrinsics["MLA"] * intrinsics["NS"] + local_intr[0] * local_intr[3])
-
         edges["PCont_max"] = (
             local_edg[2] if local_edg[2] > edges["PCont_max"] else edges["PCont_max"]
         )
         edges["RCont_max"] = (
             local_edg[3] if local_edg[3] > edges["RCont_max"] else edges["RCont_max"]
         )
-        edges["POri_max"] = (
-            local_edg[6] if local_edg[6] > edges["POri_max"] else edges["POri_max"]
-        )
-        edges["ROri_max"] = (
-            local_edg[7] if local_edg[7] > edges["ROri_max"] else edges["ROri_max"]
-        )
-
+        
         # Merge the edges metrics : type
         if self.by_type:
             self.merge_edges_self(local_edg, local_intr)
@@ -221,13 +202,6 @@ class Merger:
             self.intrinsics["MLA"] * self.intrinsics["NS"]
             + local_intr[0] * local_intr[3]
         )
-        self.edges["ROri"] = (
-            self.edges["ROri"] * self.intrinsics["MLA"] * self.intrinsics["NS"]
-            + local_edg[5] * local_intr[0] * local_intr[3]
-        ) / (
-            self.intrinsics["MLA"] * self.intrinsics["NS"]
-            + local_intr[0] * local_intr[3]
-        )
         self.edges["PCont"] = (
             self.edges["PCont"] * self.intrinsics["MLA"] * self.intrinsics["NS"]
             + local_edg[0] * local_intr[0] * local_intr[3]
@@ -235,14 +209,6 @@ class Merger:
             self.intrinsics["MLA"] * self.intrinsics["NS"]
             + local_intr[0] * local_intr[3]
         )
-        self.edges["POri"] = (
-            self.edges["POri"] * self.intrinsics["MLA"] * self.intrinsics["NS"]
-            + local_edg[4] * local_intr[0] * local_intr[3]
-        ) / (
-            self.intrinsics["MLA"] * self.intrinsics["NS"]
-            + local_intr[0] * local_intr[3]
-        )
-
         self.edges["PCont_max"] = (
             local_edg[2]
             if local_edg[2] > self.edges["PCont_max"]
@@ -253,17 +219,7 @@ class Merger:
             if local_edg[3] > self.edges["RCont_max"]
             else self.edges["RCont_max"]
         )
-        self.edges["POri_max"] = (
-            local_edg[6]
-            if local_edg[6] > self.edges["POri_max"]
-            else self.edges["POri_max"]
-        )
-        self.edges["ROri_max"] = (
-            local_edg[7]
-            if local_edg[7] > self.edges["ROri_max"]
-            else self.edges["ROri_max"]
-        )
-
+    
     def merge_intr_self(self, local_intr, gt=False):
         """
         Merge the local intrinsic metrics with the already saved intrinsic metrics to get the updated global ones
