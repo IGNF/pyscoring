@@ -189,7 +189,8 @@ class Launcher:
                         "Under Segmentation",
                         "Under reconstruction rate (pixels)",
                         "Over reconstruction rate (pixels)",
-                        "Sum error",
+                        "Mean error",
+                        "RMSE",
                         "Standard deviation",
                     ],
                     [
